@@ -8,7 +8,15 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ### Categories
 
+* [Bash](#bash)
 * [PostgreSQL](#postgresql)
+
+
+---
+
+### Bash
+
+- [Import another script file](bash/import.md)
 
 ---
 
