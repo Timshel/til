@@ -9,6 +9,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 ### Categories
 
 * [Bash](#bash)
+* [Linux](#linux)
 * [PostgreSQL](#postgresql)
 
 
@@ -17,6 +18,12 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 ### Bash
 
 - [Import another script file](bash/import.md)
+
+---
+
+### Linux
+
+- [Immutable file](linux/immutable-file.md)
 
 ---
 
