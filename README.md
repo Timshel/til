@@ -23,6 +23,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ### Linux
 
+- [Alternatives setup for NodeJs](linux/alternatives.md)
 - [Apt backport](linux/apt-backport.md)
 - [Block resolv.conf updates](linux/resolv-conf.md)
 - [Immutable file](linux/immutable-file.md)
