@@ -21,6 +21,12 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ---
 
+### Java
+
+- [Application max memory](java/max-memory.md)
+
+---
+
 ### Linux
 
 - [Alternatives setup for NodeJs](linux/alternatives.md)
@@ -33,3 +39,9 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 ### PostgreSQL
 
 - [Export query result to file](postgres/export-query-file.md)
+
+---
+
+### Play
+
+- [Test with DI](play/di-with-application.md)
