@@ -6,6 +6,7 @@ Example with specs2 :
 ```scala
 import org.specs2.execute.{ AsResult, Result }
 import org.specs2.mutable.Around
+import org.specs2.specification.Scope
 import play.api.{ Application, ApplicationLoader, Environment, Mode }
 
 abstract class WithApplication extends Around with Scope {
