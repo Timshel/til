@@ -32,6 +32,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 - [Alternatives setup for NodeJs](linux/alternatives.md)
 - [Apt backport](linux/apt-backport.md)
 - [Block resolv.conf updates](linux/resolv-conf.md)
+- [Custom buffer handling for streams](linux/stdbuf.md)
 - [Immutable file](linux/immutable-file.md)
 - [Tee: Duplicate output](linux/tee.md)
 
