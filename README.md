@@ -48,6 +48,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 ### PostgreSQL
 
 - [Export query result to file](postgres/export-query-file.md)
+- [Full texts earch](postgres/full-text.md)
 
 ---
 
