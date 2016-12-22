@@ -21,6 +21,12 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ---
 
+### Firefox
+
+ - [Contextual identities](firefox/contextual-identity.md)
+
+---
+
 ### Git
 
 - [Diff of one commit](git/diff-one.md)
@@ -39,6 +45,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 - [Apt backport](linux/apt-backport.md)
 - [Block resolv.conf updates](linux/resolv-conf.md)
 - [Check NTP status](linux/check-ntp.md)
+- [Update Time](linux/ntpdate.md)
 - [Custom buffer handling for streams](linux/stdbuf.md)
 - [Immutable file](linux/immutable-file.md)
 - [Power management](linux/power.md)
@@ -50,6 +57,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 - [Export query result to file](postgres/export-query-file.md)
 - [Full texts earch](postgres/full-text.md)
+- [Pagination with total](postgres/pagination.md)
 
 ---
 

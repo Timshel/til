@@ -1,8 +1,9 @@
 # Basic full text search in postgres
 
 Cf:
- - https://www.postgresql.org/docs/9.5/static/textsearch.html
+ - https://www.postgresql.org/docs/9.6/static/textsearch.html
  - http://rachbelaid.com/postgres-full-text-search-is-good-enough/
+ - https://www.postgresql.org/docs/9.6/static/pgtrgm.html
 
 Add a column with will store the `tsVector`, and add an index
 ```
