@@ -68,6 +68,12 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ----
 
+### Scala
+
+- [Test with Pattern match](scala/test-pattern.md)
+
+----
+
 ### SSH
 
   - [Proxy command](ssh/proxy-command.md)
