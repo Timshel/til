@@ -4,6 +4,7 @@ Cf:
  - https://www.postgresql.org/docs/9.6/static/textsearch.html
  - http://rachbelaid.com/postgres-full-text-search-is-good-enough/
  - https://www.postgresql.org/docs/9.6/static/pgtrgm.html
+ - http://renesd.blogspot.fr/2017/02/is-postgresql-good-enough.html (https://news.ycombinator.com/item?id=13641377)
 
 Add a column with will store the `tsVector`, and add an index
 ```

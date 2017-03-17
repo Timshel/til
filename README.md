@@ -51,6 +51,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 - [Immutable file](linux/immutable-file.md)
 - [Power management](linux/power.md)
 - [Tee: Duplicate output](linux/tee.md)
+- [The following packages have unmet dependencies](linux/packages-cleanup.md)
 
 ---
 
