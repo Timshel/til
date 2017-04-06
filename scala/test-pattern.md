@@ -13,3 +13,4 @@ inside(validated) { case Valid(d) => assert(d === delivery) }
 ```scala
 beLike { case exp => result }
 ```
+

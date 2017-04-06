@@ -71,6 +71,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ### Scala
 
+- [Logger in `build.sbt`](scala/sbt-logger.md)
 - [Test with Pattern match](scala/test-pattern.md)
 
 ----

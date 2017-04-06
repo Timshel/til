@@ -29,3 +29,6 @@ If you don't care about accent add package `postgresql-contrib-9.x` to use `unac
 CREATE EXTENSION IF NOT EXISTS unaccent;
 update details set search = to_tsvector('english', id || ' ' || unaccent(name))
 ```
+
+Additionnaly prefix matching can be achieved with lexem suffix : `'super:*'::tsquery`.
+When matching with multiple lexems it seems that `'tele_chi:*'::tsquery` est équivalent à `'tele:* & chi:*'::tsquery`
