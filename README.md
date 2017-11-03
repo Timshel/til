@@ -46,6 +46,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 - [Apt backport](linux/apt-backport.md)
 - [Block resolv.conf updates](linux/resolv-conf.md)
 - [Check NTP status](linux/check-ntp.md)
+- [Grub Rescue](linux/grub-rescue.md) 
 - [Update Time](linux/ntpdate.md)
 - [Custom buffer handling for streams](linux/stdbuf.md)
 - [Immutable file](linux/immutable-file.md)
@@ -73,6 +74,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 - [Logger in `build.sbt`](scala/sbt-logger.md)
 - [Test with Pattern match](scala/test-pattern.md)
+- [Thread pool](scala/thread-pool.md)
 
 ----
 
