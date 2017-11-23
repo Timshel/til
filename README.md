@@ -61,6 +61,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 - [Export query result to file](postgres/export-query-file.md)
 - [Full texts earch](postgres/full-text.md)
+- [Optmizations](postgres/optmizations.md)
 - [Pagination with total](postgres/pagination.md)
 
 ---
