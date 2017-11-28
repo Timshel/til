@@ -51,6 +51,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 - [Update Time](linux/ntpdate.md)
 - [Custom buffer handling for streams](linux/stdbuf.md)
 - [Immutable file](linux/immutable-file.md)
+- [Optmizations](linux/optmizations.md)
 - [Power management](linux/power.md)
 - [Tee: Duplicate output](linux/tee.md)
 - [The following packages have unmet dependencies](linux/packages-cleanup.md)
