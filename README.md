@@ -24,6 +24,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 ### Firefox
 
  - [Contextual identities](firefox/contextual-identity.md)
+ - [Eme](firefox/eme.md)
  - [Permission isolation](firefox/permission-isolation.md)
 
 ---
