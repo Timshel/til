@@ -8,6 +8,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ### Categories
 
+* [Amazon](#amazon)
 * [Bash](#bash)
 * [Linux](#linux)
 * [PostgreSQL](#postgresql)
@@ -15,9 +16,22 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ---
 
+### Amazon
+
+- [Elb](amazon/elb.md)
+
+---
+
 ### Bash
 
 - [Import another script file](bash/import.md)
+- [Array expansion modifier](bash/var-args.md)
+
+---
+
+### Elasticsearch
+
+ - [Indices](elasticsearch/indices.md)
 
 ---
 
@@ -61,6 +75,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ### PostgreSQL
 
+- [Copy from S3](postgres/copy-s3.md)
 - [Export query result to file](postgres/export-query-file.md)
 - [Full texts earch](postgres/full-text.md)
 - [Optmizations](postgres/optmizations.md)
@@ -76,6 +91,7 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ### Scala
 
+- [Console debug](scala/consolde-debug.md)
 - [Logger in `build.sbt`](scala/sbt-logger.md)
 - [Test with Pattern match](scala/test-pattern.md)
 - [Thread pool](scala/thread-pool.md)

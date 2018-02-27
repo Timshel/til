@@ -11,6 +11,6 @@ inside(validated) { case Valid(d) => assert(d === delivery) }
 ## Specs2
 
 ```scala
-beLike { case exp => result }
+validated should beLike { case Valid(exp) => result }
 ```
 
