@@ -13,3 +13,9 @@ Int `/etc/apt/apt.conf` (Keep stable as the default)
 Check that by default we stay on stable : `apt-cache policy nodejs`.
 
 Install nodejs selecting the testing source : `apt-get install nodejs -t testing`
+
+# Search available package with version
+
+```bash
+apt-cache policy libcudnn7
+```
