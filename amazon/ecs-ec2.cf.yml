@@ -1,0 +1,511 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  This template deploys a service to an AWS EC2 Cluster with custom VPC and Subnets.
+  An ECS Service ensures it continues to run on the created Cluster. Logging is captured within CloudWatch.
+
+Parameters:
+  HostedZoneResource:
+    Type: String
+    Description: Existing route53 zone
+
+  HttpsCertificateArn:
+    Type: String
+    Description: Existing wildcard certificates for HZ
+
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: g3s.xlarge
+
+  InstanceAmi:
+    Description: EC2 instance ami (aws2 --region us-east-1 ssm  get-parameters --names /aws/service/ecs/optimized-ami/amazon-linux-2/gpu/recommended)
+    Type: String
+    Default: ami-0956d5c2e0e6240ad
+
+Resources:
+  Vpc:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+
+  # Setup networking resources for the public subnets. Containers
+  # in the public subnets have public IP addresses and the routing table
+  # sends network traffic via the internet gateway.
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-gateway"
+
+  AttachGateway:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  # Attaching a Internet Gateway to route table makes it public.
+  RouteViaIgw:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ig-table"
+
+  PublicRouteViaIgw:
+    Type: "AWS::EC2::Route"
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteViaIgw
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetAz1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+          - 1
+          - Fn::GetAZs: {Ref: "AWS::Region"}
+      VpcId: !Ref Vpc
+      CidrBlock: "10.0.0.0/24"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-z1/Public"
+
+  PublicSubnetAz2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+          - 2
+          - Fn::GetAZs: {Ref: "AWS::Region"}
+      VpcId: !Ref Vpc
+      CidrBlock: "10.0.1.0/24"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-z2/Public"
+
+  # Attaching a public route table makes a subnet public.
+  PubSubnet1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnetAz1
+      RouteTableId: !Ref RouteViaIgw
+
+  PubSubnet2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnetAz2
+      RouteTableId: !Ref RouteViaIgw
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${AWS::StackName}"
+
+  LoadBalancerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub "Traffic to ${AWS::StackName}-elb"
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+          Description: "HTTP ingress redirected"
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 443
+          ToPort: 443
+          IpProtocol: tcp
+          Description: "HTTPS ingress"
+      VpcId: !Ref Vpc
+
+  BackendLoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: !Sub "${AWS::StackName}-backend-elb"
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref PublicSubnetAz1
+        - !Ref PublicSubnetAz2
+
+  BackendLoadBalancerListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      LoadBalancerArn: !Ref BackendLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Sub "${HttpsCertificateArn}"
+      DefaultActions:
+        - TargetGroupArn: !Ref BackendTargetGroup
+          Type: forward
+
+  BackendLoadBalancerListenerRedirect:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref BackendLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            StatusCode: HTTP_301
+            Port: 443
+
+  BackendTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    DependsOn: BackendLoadBalancer
+    Properties:
+      Name: !Sub "${AWS::StackName}-backend-tg"
+      VpcId: !Ref Vpc
+      TargetType: instance
+      Port: 5003
+      HealthCheckPath: /
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      Matcher:
+        HttpCode: 426
+
+  FrontendLoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: !Sub "${AWS::StackName}-frontend-elb"
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref PublicSubnetAz1
+        - !Ref PublicSubnetAz2
+
+  FrontendLoadBalancerListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      LoadBalancerArn: !Ref FrontendLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Sub "${HttpsCertificateArn}"
+      DefaultActions:
+        - TargetGroupArn: !Ref FrontendTargetGroup
+          Type: forward
+
+  FrontendLoadBalancerListenerRedirect:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref FrontendLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            StatusCode: HTTP_301
+            Port: 443
+
+  FrontendTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    DependsOn: FrontendLoadBalancer
+    Properties:
+      Name: !Sub "${AWS::StackName}-frontend-tg"
+      VpcId: !Ref Vpc
+      TargetType: instance
+      Port: 8000
+      HealthCheckPath: /
+      Protocol: HTTP
+      UnhealthyThresholdCount: 5
+      Matcher:
+        HttpCode: 401
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${AWS::StackName}-ec2-cluster"
+
+  ContainerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Traffic between ELB and Containers
+      SecurityGroupIngress:
+        - FromPort: 5003
+          ToPort: 5003
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - FromPort: 8000
+          ToPort: 8000
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - Description: SSH
+          FromPort: 22
+          ToPort: 22
+          IpProtocol: tcp
+          CidrIp: "x.x.x.x/32"
+      VpcId: !Ref Vpc
+
+
+  # Autoscaling group. This launches the actual EC2 instances that will register
+  # themselves as members of the cluster, and run the docker containers.
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnetAz1
+        - !Ref PublicSubnetAz2
+      LaunchConfigurationName: !Ref ContainerInstances
+      MinSize: "0"
+      MaxSize: "1"
+      DesiredCapacity: "1"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ecs-instance"
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: "true"
+
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      ImageId: !Ref InstanceAmi
+      SecurityGroups: [!Ref "ContainerSecurityGroup"]
+      InstanceType: !Ref "InstanceType"
+      IamInstanceProfile: !Ref "EC2InstanceProfile"
+      KeyName: service
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            DeleteOnTermination: true
+            Encrypted: false
+            VolumeType: gp2
+            VolumeSize: 100
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+
+  # Role for the EC2 hosts. This allows the ECS agent on the EC2 hosts
+  # to communciate with the ECS control plane, as well as download the docker
+  # images from ECR to run on your host.
+  Ec2EcsSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-ec2-role"
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - ecs-tasks.amazonaws.com
+              - ec2.amazonaws.com
+              - ecs.amazonaws.com
+          Action: ["sts:AssumeRole"]
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+              - "ecs:DeregisterContainerInstance"
+              - "ecs:DiscoverPollEndpoint"
+              - "ecs:Poll"
+              - "ecs:RegisterContainerInstance"
+              - "ecs:StartTelemetrySession"
+              - "ecs:Submit*"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "ecr:GetAuthorizationToken"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:BatchGetImage"
+              - "ecr:GetDownloadUrlForLayer"
+            Resource:
+              - !ImportValue "ecr-backend"
+              - !ImportValue "ecr-frontend"
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref "Ec2EcsSRole"]
+
+  Service:
+    Type: "AWS::ECS::Service"
+    DependsOn:
+      - BackendLoadBalancerListener
+      - FrontendLoadBalancerListener
+    Properties:
+      ServiceName: !Sub "${AWS::StackName}-dashboard-service"
+      Cluster: !Ref ECSCluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 60
+      LoadBalancers:
+        - ContainerName: !Sub "${AWS::StackName}-backend"
+          ContainerPort: 5003
+          TargetGroupArn: !Ref BackendTargetGroup
+        - ContainerName: !Sub "${AWS::StackName}-frontend"
+          ContainerPort: 8000
+          TargetGroupArn: !Ref FrontendTargetGroup
+      TaskDefinition: !Ref TaskDefinition
+
+  TaskRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-task-role"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ["ecs-tasks.amazonaws.com"]
+            Action: ["sts:AssumeRole"]
+      Policies:
+        - PolicyName: s3-read
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:List*"
+                Resource: "arn:aws:s3:::bucket"
+              - Effect: Allow
+                Action:
+                  - "s3:Get*"
+                  - "s3:List*"
+                Resource: "arn:aws:s3:::bucket/*"
+
+  TaskDefinition:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Family: !Sub "${AWS::StackName}-task"
+      Cpu: "2000"
+      Memory: "8192"
+      ExecutionRoleArn: !Ref Ec2EcsSRole
+      TaskRoleArn: !Ref TaskRole
+      NetworkMode: bridge
+      RequiresCompatibilities:
+        - EC2
+      Volumes:
+        - Name: neo4j
+          DockerVolumeConfiguration:
+            Autoprovision: true
+            Driver: "local"
+            Scope: "shared"
+      ContainerDefinitions:
+        - Name: !Sub "${AWS::StackName}-neo4j"
+          Image: "neo4j:3.5.9"
+          Essential: true
+          Cpu: 100
+          Memory: 1024
+          PortMappings:
+            - ContainerPort: 7474
+              HostPort: 7474
+            - ContainerPort: 7687
+              HostPort: 7687
+          Environment:
+            - Name: "NEO4J_AUTH"
+              Value: "neo4j/xxx"
+          MountPoints:
+            - SourceVolume: neo4j
+              ContainerPath: "/data"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: !Ref "AWS::StackName"
+        - Name: !Sub "${AWS::StackName}-frontend"
+          Image: !ImportValue "ecr-frontend-url"
+          Essential: true
+          Cpu: 128
+          Memory: 128
+          Command:
+            - python
+            - server.py
+            - --basic_auth_user_pwd
+          PortMappings:
+            - ContainerPort: 8000
+              HostPort: 8000
+          Environment:
+            - Name: "WS_SERVER_ADDRESS"
+              Value: !Sub "wss://${AWS::StackName}-backend.demo.com/"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: !Ref "AWS::StackName"
+        - Name: !Sub "${AWS::StackName}-backend"
+          Image: !ImportValue "ecr-backend-url"
+          Essential: true
+          Cpu: 1500
+          Memory: 5512
+          ResourceRequirements:
+            - Type: "GPU"
+              Value: "1"
+          PortMappings:
+            - ContainerPort: 5003
+              HostPort: 5003
+          Links:
+            - !Sub "${AWS::StackName}-neo4j:neo4j"
+          Environment:
+            - Name: "NEO4J_ADDRESS"
+              Value: "bolt://neo4j:7687"
+            - Name: "S3_BUCKET"
+              Value: "bucket"
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: !Ref "AWS::StackName"
+
+  BackendDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub "${HostedZoneResource}."
+      Comment: DNS name for backend service.
+      Name: !Sub "${AWS::StackName}-backend.demo.${HostedZoneResource}."
+      Type: CNAME
+      TTL: "900"
+      ResourceRecords:
+        - !GetAtt "BackendLoadBalancer.DNSName"
+
+  FrontendDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub "${HostedZoneResource}."
+      Comment: DNS name for frontend service.
+      Name: !Sub "${AWS::StackName}.demo.${HostedZoneResource}."
+      Type: CNAME
+      TTL: "900"
+      ResourceRecords:
+        - !GetAtt "FrontendLoadBalancer.DNSName"
+
+Outputs:
+  BackendServiceUrl:
+    Value: !GetAtt "BackendLoadBalancer.DNSName"
+  FrontendServiceUrl:
+    Value: !GetAtt "FrontendLoadBalancer.DNSName"

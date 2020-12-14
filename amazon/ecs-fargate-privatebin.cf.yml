@@ -1,0 +1,430 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+  This template deploys a custom Privatebin image to an AWS Fargate Cluster on user-defined VPC and Subnets.
+  An ECS Service ensures it continues to run on the created Cluster. Logging is captured within CloudWatch.
+
+Parameters:
+  SubDomainName:
+    Type: String
+    Description: Name of the subdomain (ex privatebin)
+
+  HostedZoneResource:
+    Type: String
+    Description: Existing route53 zone
+
+  HttpsCertificateArn:
+    Type: String
+    Description: Existing wildcard certificates for HZ
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${AWS::StackName}-log-group"
+
+  Vpc:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref "AWS::StackName"
+
+  # Setup networking resources for the public subnets. Containers
+  # in the public subnets have public IP addresses and the routing table
+  # sends network traffic via the internet gateway.
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-gateway"
+
+  AttachGateway:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  # Attaching a Internet Gateway to route table makes it public.
+  RouteViaIgw:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ig-table"
+
+  PublicRouteViaIgw:
+    Type: "AWS::EC2::Route"
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteViaIgw
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetAz1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+          - 1
+          - Fn::GetAZs: {Ref: 'AWS::Region'}
+      VpcId: !Ref Vpc
+      CidrBlock: "10.0.0.0/24"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-z1/Public"
+
+  PublicSubnetAz2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+         Fn::Select:
+          - 2
+          - Fn::GetAZs: {Ref: 'AWS::Region'}
+      VpcId: !Ref Vpc
+      CidrBlock: "10.0.1.0/24"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-z2/Public"
+
+  # Attaching a public route table makes a subnet public.
+  PubSubnet1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnetAz1
+      RouteTableId: !Ref RouteViaIgw
+
+  PubSubnet2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnetAz2
+      RouteTableId: !Ref RouteViaIgw
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${AWS::StackName}-fargate-cluster"
+
+  LoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: !Sub "${AWS::StackName}-elb"
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref PublicSubnetAz1
+        - !Ref PublicSubnetAz2
+
+  LoadBalancerListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Sub "${HttpsCertificateArn}"
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
+  LoadBalancerListenerRedirect:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            StatusCode: HTTP_301
+            Port: 443
+
+  LoadBalancerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub "Traffic to ${AWS::StackName}-elb"
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+          Description: "HTTP ingress redirected"
+        - CidrIp: "0.0.0.0/0"
+          FromPort: 443
+          ToPort: 443
+          IpProtocol: tcp
+          Description: "HTTPS ingress"
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-elb"
+
+  TargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    DependsOn: LoadBalancer
+    Properties:
+      Name: !Sub "${AWS::StackName}-tg"
+      HealthCheckPath: /
+      Port: 8080
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: !Ref Vpc
+
+  ContainerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Traffic between ELB and Containers
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - FromPort: 8080
+          ToPort: 8080
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-container"
+
+  EfsSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: Traffic between EFS and Containers
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - FromPort: 2049
+          ToPort: 2049
+          IpProtocol: tcp
+          SourceSecurityGroupId: !Ref ContainerSecurityGroup
+      SecurityGroupEgress:
+        - FromPort: 2049
+          ToPort: 2049
+          IpProtocol: tcp
+          DestinationSecurityGroupId: !Ref ContainerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-efs"
+
+  Service:
+    Type: "AWS::ECS::Service"
+    DependsOn:
+      - LoadBalancerListener
+    Properties:
+      ServiceName: !Sub "${AWS::StackName}-dashboard-service"
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 60
+      LoadBalancers:
+        - ContainerName: !Sub "${AWS::StackName}-container"
+          ContainerPort: 8080
+          TargetGroupArn: !Ref TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref ContainerSecurityGroup
+          Subnets:
+            - !Ref PublicSubnetAz1
+            - !Ref PublicSubnetAz2
+      TaskDefinition: !Ref TaskDefinition
+      PlatformVersion: 1.4.0
+
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref "AWS::StackName"
+      ImageTagMutability: "MUTABLE"
+      ImageScanningConfiguration:
+        scanOnPush: "true"
+
+  EcrCiUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::StackName}-ci"
+      Path: "/org/ci/"
+      Groups:
+        - bots
+      Policies:
+        - PolicyName: !Sub "${AWS::StackName}-ecr-push"
+          PolicyDocument:
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                          "ecr:GetDownloadUrlForLayer",
+                          "ecr:BatchGetImage",
+                          "ecr:BatchCheckLayerAvailability",
+                          "ecr:PutImage",
+                          "ecr:InitiateLayerUpload",
+                          "ecr:UploadLayerPart",
+                          "ecr:CompleteLayerUpload"
+                        ],
+                        "Resource": !GetAtt EcrRepository.Arn
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "ecr:GetAuthorizationToken"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+            }
+
+  DataVolumeDefinition:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      BackupPolicy:
+        Status: DISABLED
+      Encrypted: false
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-data"
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+
+  DataMountTargetDefinition1:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref DataVolumeDefinition
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+      SubnetId: !Ref PublicSubnetAz1
+
+  DataMountTargetDefinition1:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref DataVolumeDefinition
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+      SubnetId: !Ref PublicSubnetAz2
+
+  DataAccessPointDefinition:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      AccessPointTags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-ap"
+      FileSystemId: !Ref DataVolumeDefinition
+      PosixUser:
+        Uid: 65534
+        Gid: 82
+      RootDirectory:
+        Path: /privatebin
+        CreationInfo:
+          OwnerUid: 65534
+          OwnerGid: 82
+          Permissions: 777
+
+  TaskExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-task-execution-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+                - ecs.amazonaws.com
+                - ec2.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        - "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+        - "arn:aws:iam::aws:policy/ResourceGroupsandTagEditorReadOnlyAccess"
+      Policies:
+        - PolicyName: !Sub "${AWS::StackName}-ecr-read"
+          PolicyDocument:
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "ecr:BatchCheckLayerAvailability",
+                            "ecr:BatchGetImage",
+                            "ecr:GetDownloadUrlForLayer",
+                            "ecr:GetAuthorizationToken"
+                        ],
+                        "Resource": !GetAtt EcrRepository.Arn
+                    }
+                ]
+            }
+        - PolicyName: !Sub "${AWS::StackName}-efs-rw"
+          PolicyDocument:
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "elasticfilesystem:*"
+                        ],
+                        "Resource": !GetAtt DataVolumeDefinition.Arn
+                    }
+                ]
+            }
+
+  TaskDefinition:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Family: !Sub "${AWS::StackName}-fargate"
+      Cpu: "256"
+      Memory: "512"
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      TaskRoleArn: !Ref TaskExecutionRole
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Volumes:
+        - Name: data
+          EfsVolumeConfiguration:
+            FilesystemId: !Ref DataVolumeDefinition
+            TransitEncryption: ENABLED
+            AuthorizationConfig:
+              AccessPointId: !Ref DataAccessPointDefinition
+              IAM: ENABLED
+      ContainerDefinitions:
+        - Name: !Sub "${AWS::StackName}-container"
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AWS::StackName}:latest"
+          Essential: true
+          ReadonlyRootFilesystem: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: !Ref "AWS::StackName"
+          PortMappings:
+            - ContainerPort: 8080
+          MountPoints:
+            - SourceVolume: data
+              ContainerPath: "/srv/data"
+
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Sub "${HostedZoneResource}."
+      Comment: DNS name for privatebin fargate cluster.
+      Name: !Sub "${SubDomainName}.${HostedZoneResource}."
+      Type: CNAME
+      TTL: "900"
+      ResourceRecords:
+        - !GetAtt "LoadBalancer.DNSName"
+
+Outputs:
+  ServiceUrl:
+    Value: !GetAtt "LoadBalancer.DNSName"
