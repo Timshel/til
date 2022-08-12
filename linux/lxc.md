@@ -35,6 +35,14 @@ $ sudo virsh net-edit default
 </network>
 ```
 
+Start virsh interface
+
+```bash
+virsh net-start default
+ip a
+virsh net-autostart default
+```
+
 ## Lxc config
 
 Update the `lxc` config with a specified mac (`/var/lib/lxc/whatsapp/config`)
