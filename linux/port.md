@@ -1,6 +1,6 @@
 # Port checking
 
-Netstat : list open port for tcp and udp :
+Netstat : list open port for tcp and udp (package `net-tools`) :
 ``` bash
 netstat -ltup
 ```

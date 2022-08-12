@@ -1,5 +1,7 @@
 # Dig
 
+Debian package `dns-utils`
+
 ## Check dns resolution with specific ip
 
 ```bash

@@ -13,7 +13,7 @@ sudo lxc-create -n whatsapp -t debian -- -r buster
 Source : https://wiki.debian.org/fr/LXC/LibVirtDefaultNetwork
 
 ```bash
-apt-get install libvirt-bin
+apt-get install libvirt-daemon-system libvirt-clients
 reboot
 virsh net-info default
 ```
