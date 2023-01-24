@@ -53,6 +53,12 @@ AllowedIPs = 10.0.0.2/32
 
 ## Client conf :
 
+Generate key : 
+```bash
+umask 077; wg genkey | tee privatekey | wg pubkey > publickey
+``` 
+
+
 ```conf
 [Interface]
 Address = 10.0.0.48/24
