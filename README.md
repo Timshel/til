@@ -43,12 +43,6 @@ A collection of concise write-ups on small things I learn day to day. Inspired b
 
 ---
 
-### Git
-
-- [Diff of one commit](git/diff-one.md)
-
----
-
 ### Java
 
 - [Application max memory](java/max-memory.md)
