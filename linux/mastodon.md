@@ -87,3 +87,9 @@ If post deploy you wiped the remote accounts assets :D :
 RAILS_ENV=production bin/tootctl accounts refresh --all
 RAILS_ENV=production bin/tootctl accounts refresh --domain mastodon.toto
 ```
+
+Remove old media:
+
+```bash
+RAILS_ENV=production /home/mastodon/.rbenv/shims/bundle exec bin/tootctl media remove --days=7
+```
