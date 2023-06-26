@@ -1,4 +1,4 @@
-# LVM : Shrink and resize 
+# LVM
 
 Sources :
  - https://wiki.archlinux.org/index.php/LVM
@@ -21,4 +21,10 @@ For swap you can't use `resizefs` but it can be done live :
 > sudo lvresize -L 62G /dev/ubuntu-vg/swap_1
 > sudo mkswap /dev/VolGroup00/LogVol01
 > sudo swapon -va
+```
+
+## Extend and resize FS
+
+```bash
+> lvextend  --resizefs -L +10G /dev/data/mastodon-public
 ```
