@@ -23,3 +23,14 @@ git diff 572ecd1^ 572ecd1
 
 When staging chunk using `git add -p` if after splitting `s` the result is not splitted enough just directly edit the patch using `e`.
 
+## Create a patch with latest commit
+
+```bash
+>git format-patch -1 HEAD
+```
+
+## Apply patch
+
+```bash
+>git apply --verbose --directory=fenix patch.patch
+```
