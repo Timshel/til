@@ -6,3 +6,7 @@ Forward to port 8080 `127.0.0.1:61027` from gpu1 :
 ```bash
  ssh -nNT -L 8080:127.0.0.1:61027 gpu1
 ```
+
+## Mount remote FS
+
+Instead of using `sshfs` should prefer [rclone](../tools/rclone.md).

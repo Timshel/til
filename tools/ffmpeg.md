@@ -18,3 +18,11 @@ Delay whole video with `itsoffset` then either use the delayed video : `-map 1:v
 ```bash
 ffmpeg -i movie.mp4 -itsoffset 3.84 -i movie.mp4 -map 1:v -map 0:a -c copy movie-video-delayed.mp4
 ```
+
+## Repair a video
+
+Simply make a copy of it :
+
+```bash
+>ffmpeg -i toto.mp4 -c copy toto-repaired.mp4
+```

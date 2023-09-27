@@ -34,3 +34,18 @@ When staging chunk using `git add -p` if after splitting `s` the result is not s
 ```bash
 >git apply --verbose --directory=fenix patch.patch
 ```
+
+## Commit Hash
+
+```bash
+>git rev-parse HEAD
+>git rev-parse --short HEAD
+```
+
+## Multiline commit messages
+
+Useful to create release messages on tag.
+
+```bash
+git tag 2023-09-05 -a
+```

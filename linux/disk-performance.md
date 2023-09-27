@@ -7,7 +7,7 @@ Add cpu average bar.
 
 ## Iostats :
 
-Display extended statistic every second :
+Display extended statistic every second (package `sysstat`) :
 ```bash
 > iostat -x 1
 avg-cpu:  %user   %nice %system %iowait  %steal   %idle

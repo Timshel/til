@@ -93,3 +93,8 @@ iptables -t nat -A POSTROUTING -o eno1 -j MASQUERADE
 $sudo lxc-start -d -n whatsapp
 $sudo lxc-attach -n whatsapp
 ```
+
+## X11 ?
+
+Cf: https://blog.simos.info/running-x11-software-in-lxd-containers/
+Wayland: https://discuss.linuxcontainers.org/t/howto-use-the-hosts-wayland-and-xwayland-servers-inside-containers/8765
