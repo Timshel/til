@@ -91,5 +91,5 @@ RAILS_ENV=production bin/tootctl accounts refresh --domain mastodon.toto
 Remove old media:
 
 ```bash
-RAILS_ENV=production /home/mastodon/.rbenv/shims/bundle exec bin/tootctl media remove --days=7
+RAILS_ENV=production /opt/rbenv/shims/bundle exec bin/tootctl media remove --days=7
 ```
