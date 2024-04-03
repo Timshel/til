@@ -35,10 +35,28 @@ sdf                          ST10000VN0004-1ZD101           ZA2.....        11:0
 
 ## Wipe a disk
 
+### For HDD
+
 ```bash
 shred -v -n 2  /dev/disk/by-id/ata-
 ```
 
+### For SSD
+
+- Check first if secure erase is supported: (If the `not` is not present),
+- Need to set a password to be able to issue a secure erase command.
+- Issue one of the two secure erase command.
+- Check with `dd` that it output nothing.
+- Disable the security
+
+```bash
+sudo hdparm -I /dev/disk/by-id/usb- | grep erase
+sudo hdparm --user-master u --security-set-pass 'p' /dev/disk/by-id/usb-
+sudo hdparm --user-master u --security-erase-enhanced 'p' /dev/disk/by-id/usb-
+sudo hdparm --user-master u --security-erase 'p' /dev/disk/by-id/usb-
+sudo hdparm --security-disable 'p' /dev/disk/by-id/usb-
+sudo dd if=/dev/disk/by-id/usb- bs=1M count=5
+```
 
 ## Hot remove a drive
 
