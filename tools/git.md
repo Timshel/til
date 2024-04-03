@@ -35,6 +35,12 @@ When staging chunk using `git add -p` if after splitting `s` the result is not s
 >git apply --verbose --directory=fenix patch.patch
 ```
 
+If there is conflict use three-ways merge:
+
+```bash
+>git am --ignore-whitespace --ignore-space-change -3 patch.patch
+```
+
 ## Commit Hash
 
 ```bash
