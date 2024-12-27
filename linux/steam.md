@@ -2,6 +2,19 @@
 
 On running steam in Linux using `Flatpak`
 
+## Proton path
+
+Cf: https://github.com/ValveSoftware/Proton/wiki/Proton-FAQ#how-does-proton-manage-wine-prefixes
+
+
+Wine prefix is set in the steamapps, ex:
+
+```bash
+/media/Games/flatpak-steam-library/SteamLibrary/steamapps/compatdata/2379780/pfx/drive_c/
+```
+
+
+
 ## Run exe in same Proton env
 
 Ex running `toggle_anti_cheat` for elden ring in `Proton 8.0` :

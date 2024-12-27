@@ -84,8 +84,8 @@ Cf: https://docs.joinmastodon.org/admin/tootctl/
 If post deploy you wiped the remote accounts assets :D :
 
 ```bash
-RAILS_ENV=production bin/tootctl accounts refresh --all
-RAILS_ENV=production bin/tootctl accounts refresh --domain mastodon.toto
+RAILS_ENV=production /opt/rbenv/shims/bundle exec bin/tootctl accounts refresh --all
+RAILS_ENV=production /opt/rbenv/shims/bundle exec bin/tootctl accounts refresh --domain mastodon.toto
 ```
 
 Remove old media:
