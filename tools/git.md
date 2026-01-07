@@ -55,3 +55,15 @@ Useful to create release messages on tag.
 ```bash
 git tag 2023-09-05 -a
 ```
+
+## Push multiple tags
+
+```bash
+git push codeberg tag "v2025*"
+```
+
+## Delete multiple tags
+
+```bash
+git push codeberg -d $(git tag -l "v2.*")
+```

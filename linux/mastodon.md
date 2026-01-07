@@ -93,3 +93,9 @@ Remove old media:
 ```bash
 RAILS_ENV=production /opt/rbenv/shims/bundle exec bin/tootctl media remove --days=7
 ```
+
+Rebuild the redis cache:
+
+```bash
+RAILS_ENV=production /opt/rbenv/shims/bundle exe bin/tootctl feeds build
+```

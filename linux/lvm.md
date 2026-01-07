@@ -28,3 +28,7 @@ For swap you can't use `resizefs` but it can be done live :
 ```bash
 > lvextend  --resizefs -L +10G /dev/data/mastodon-public
 ```
+
+## With Btrfs
+
+- https://blog.ummit.dev/posts/linux/filesystem/lvm-luks-resizing-btrfs/

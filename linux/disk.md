@@ -117,7 +117,7 @@ command_line {
 }
 ```
 
-### Seagae
+### Seagate
 
 For disks with no APM settings (ex ironwolf) better to use [openSeaChest_PowerControl](https://github.com/Seagate/openSeaChest).
 
